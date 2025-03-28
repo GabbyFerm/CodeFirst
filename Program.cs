@@ -18,9 +18,8 @@ namespace ThursdayDemo
             builder.Services.AddDbContext<CodeFirstDB>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("CodeFirstDbConnection")));
 
-            builder.Services.AddFluentValidationAutoValidation()
-                       .AddFluentValidationClientsideAdapters()
-                       .AddValidatorsFromAssemblyContaining<UserToUpdateDtoValidator>();
+            builder.Services.AddValidatorsFromAssemblyContaining<UserToUpdateDtoValidator>();
+            builder.Services.AddValidatorsFromAssemblyContaining<UserToPatchDtoValidator>();
 
             // Add services to the container.
             builder.Services.AddControllers()

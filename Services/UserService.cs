@@ -1,6 +1,8 @@
-﻿using CodeFirst.Database;
+﻿using AutoMapper;
+using CodeFirst.Database;
 using CodeFirst.Dtos;
 using CodeFirst.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace CodeFirst.Services
@@ -9,9 +11,12 @@ namespace CodeFirst.Services
     {
         private readonly CodeFirstDB _context;
 
-        public UserService(CodeFirstDB context) 
+        private readonly IMapper _mapper;
+
+        public UserService(CodeFirstDB context, IMapper mapper) 
         { 
             _context = context;
+            _mapper = mapper;
         }
 
         // Get all users 
@@ -21,18 +26,24 @@ namespace CodeFirst.Services
         }
 
         // Get user by id
-        public async Task<User?> GetUserByIdAsync(int id) 
+        public async Task<UserWithSafeInfoDto?> GetUserByIdAsync(int id) 
         { 
-            return await _context.Users.FindAsync(id);
+            var userInDb = await _context.Users.FindAsync(id);
+
+            if (userInDb == null) return null;
+
+            return _mapper.Map<UserWithSafeInfoDto>(userInDb);
         }
 
         // Create a user
-        public async Task<User?> CreateAUserAsync(User newUser, string roleName) 
+        public async Task<User?> CreateUserAsync(UserToCreateDto userToCreateDto) 
         {
-            // Look up the role by name
-            var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name.ToLower() == roleName.ToLower());
+            var newUser = _mapper.Map<User>(userToCreateDto);
 
-            if (role == null) return null; // Return null if the role doesn't exist
+            // Look up the role by name
+            var role = await _context.Roles.FirstOrDefaultAsync(role => role.Name.ToLower() == userToCreateDto.RoleName.ToLower());
+
+            if (role == null) return null; // Return null if the role doesn't exist 
 
             // Assign RoleId based on the found role
             newUser.RoleId = role.Id;
@@ -50,15 +61,7 @@ namespace CodeFirst.Services
             var existingUser = await _context.Users.FindAsync(id);
             if (existingUser == null) return null;
 
-            // Update fields only if they are not null
-            if (!string.IsNullOrWhiteSpace(userToUpdate.Name))
-                existingUser.Name = userToUpdate.Name;
-
-            if (!string.IsNullOrWhiteSpace(userToUpdate.Email))
-                existingUser.Email = userToUpdate.Email;
-
-            if (!string.IsNullOrWhiteSpace(userToUpdate.PhoneNumber))
-                existingUser.PhoneNumber = userToUpdate.PhoneNumber;
+            _mapper.Map(userToUpdate, existingUser);
 
             await _context.SaveChangesAsync();
             return existingUser;

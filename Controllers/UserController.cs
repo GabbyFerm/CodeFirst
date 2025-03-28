@@ -14,16 +14,13 @@ namespace CodeFirst.Controllers
     [ApiController]
     public class UserController : ControllerBase
     {
-        private readonly IMapper _mapper;
-
         private readonly IUserService _userService;
 
         private readonly UserToUpdateDtoValidator _userToUpdateDtoValidator;
         private readonly UserToPatchDtoValidator _userToPatchDtoValidator;
 
-        public UserController(IMapper mapper, IUserService userService, UserToUpdateDtoValidator userToUpdateDtoValidator, UserToPatchDtoValidator userToPatchDtoValidator)
+        public UserController(IUserService userService, UserToUpdateDtoValidator userToUpdateDtoValidator, UserToPatchDtoValidator userToPatchDtoValidator)
         {
-            _mapper = mapper;
             _userService = userService;
             _userToUpdateDtoValidator = userToUpdateDtoValidator;
             _userToPatchDtoValidator = userToPatchDtoValidator;
@@ -35,32 +32,27 @@ namespace CodeFirst.Controllers
         {
             var usersFromDb = await _userService.GetAllUsersAsync();
 
-            var safeUsersToReturn = usersFromDb.Select(user => _mapper.Map<UserWithSafeInfoDto>(user));
-
-            return Ok(safeUsersToReturn);
+            return Ok(usersFromDb);
         }
 
         // GET api/<UserController>/5
         [HttpGet("get-user-by-{id}")]
         public async Task<IActionResult> GetUserById(int id)
         {
-            var user = await _userService.GetUserByIdAsync(id);
-            if (user == null) return NotFound();
+            var userDto = await _userService.GetUserByIdAsync(id);
 
-            var safeUser = _mapper.Map<UserWithSafeInfoDto>(user);
+            if (userDto == null) return NotFound();
 
-            return Ok(safeUser);
+            return Ok(userDto);
         }
 
-        // POST api/<UserController>
+        // POST api/<UserController> 
         [HttpPost("create-user")]
-        public async Task<IActionResult> CreateAUser([FromBody] UserToCreateDto userToCreate)
+        public async Task<IActionResult> CreateUser([FromBody] UserToCreateDto userToCreate)
         {
             if (userToCreate == null) return BadRequest("Invalid user data.");
 
-            var newUser = _mapper.Map<User>(userToCreate);
-
-            var createdUser = await _userService.CreateAUserAsync(newUser, userToCreate.RoleName);
+            var createdUser = await _userService.CreateUserAsync(userToCreate);
 
             if (createdUser == null) return BadRequest("Invalid RoleName. The role does not exist, choose Admin or User.");
 

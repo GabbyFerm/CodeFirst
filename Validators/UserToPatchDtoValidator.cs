@@ -7,17 +7,21 @@ namespace CodeFirst.Validators
     {
         public UserToPatchDtoValidator()
         {
-            RuleFor(x => x.Name)
-                .NotEmpty().When(x => !string.IsNullOrWhiteSpace(x.Name)) // Only validate if Name is provided
-                .WithMessage("Name is required.");
 
-            RuleFor(x => x.Email)
-                .EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email)) // Only validate if Email is provided
-                .WithMessage("Email must be a valid email address.");
+            RuleFor(user => user.Name)
+                .NotEmpty()
+                .WithMessage("Name is boring.")
+                .When(user => !string.IsNullOrEmpty(user.Name)); // Only validate if Name is present
 
-            RuleFor(x => x.PhoneNumber)
-                .Matches(@"^\d{10}$").When(x => !string.IsNullOrWhiteSpace(x.PhoneNumber)) // Only validate if PhoneNumber is provided
-                .WithMessage("Phone number must be 10 digits.");
+            RuleFor(user => user.Email)
+                .EmailAddress()
+                .WithMessage("Email must be a valid email address.")
+                .When(user => !string.IsNullOrWhiteSpace(user.Email));
+
+            RuleFor(user => user.PhoneNumber)
+                .Matches(@"^\d{10}$")
+                .WithMessage("Phone number must be 10 digits.")
+                .When(user => !string.IsNullOrWhiteSpace(user.PhoneNumber));
         }
     }
 }
