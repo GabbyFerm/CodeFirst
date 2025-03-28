@@ -5,6 +5,7 @@ using CodeFirst.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using CodeFirst.Validators;
+using CodeFirst.Services;
 
 
 namespace CodeFirst.Controllers
@@ -15,64 +16,55 @@ namespace CodeFirst.Controllers
     {
         private readonly IMapper _mapper;
 
-        private readonly CodeFirstDB _context;
+        private readonly IUserService _userService;
 
         private readonly UserToUpdateDtoValidator _userToUpdateDtoValidator;
+        private readonly UserToPatchDtoValidator _userToPatchDtoValidator;
 
-        public UserController(IMapper mapper, CodeFirstDB context, UserToUpdateDtoValidator userToUpdateDtoValidator)
+        public UserController(IMapper mapper, IUserService userService, UserToUpdateDtoValidator userToUpdateDtoValidator, UserToPatchDtoValidator userToPatchDtoValidator)
         {
             _mapper = mapper;
-            _context = context;
+            _userService = userService;
             _userToUpdateDtoValidator = userToUpdateDtoValidator;
+            _userToPatchDtoValidator = userToPatchDtoValidator;
         }
 
         // GET: api/<UserController>
         [HttpGet("get-all-users")]
-        public async Task<IEnumerable<UserWithSafeInfoDto>> GetAllUsersWithSafeInfo()
+        public async Task<IActionResult> GetAllUsersWithSafeInfo()
         {
-            var usersFromDb = await _context.Users.ToListAsync();
+            var usersFromDb = await _userService.GetAllUsersAsync();
 
-            var safeUsersToReturn = new List<UserWithSafeInfoDto>();
+            var safeUsersToReturn = usersFromDb.Select(user => _mapper.Map<UserWithSafeInfoDto>(user));
 
-            foreach (var user in usersFromDb) 
-            { 
-                var safeUser = _mapper.Map<UserWithSafeInfoDto>(user);
-                safeUsersToReturn.Add(safeUser);
-            }
-            return safeUsersToReturn;
+            return Ok(safeUsersToReturn);
         }
 
         // GET api/<UserController>/5
         [HttpGet("get-user-by-{id}")]
         public async Task<IActionResult> GetUserById(int id)
         {
-            User? foundUser = await _context.Users.FirstOrDefaultAsync(userInDb => userInDb.Id == id);
-            if (foundUser == null) return NotFound();
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null) return NotFound();
 
-            var safeUser = _mapper.Map<UserWithSafeInfoDto>(foundUser);
+            var safeUser = _mapper.Map<UserWithSafeInfoDto>(user);
 
             return Ok(safeUser);
         }
 
         // POST api/<UserController>
-        [HttpPost("create-a-user")]
+        [HttpPost("create-user")]
         public async Task<IActionResult> CreateAUser([FromBody] UserToCreateDto userToCreate)
         {
             if (userToCreate == null) return BadRequest("Invalid user data.");
 
-            // Look up the RoleId based on RoleName
-            var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name.ToLower() == userToCreate.RoleName.ToLower());
-
-            if (role == null) return BadRequest("Invalid RoleName. The role does not exist, choose Admin or User.");
-
             var newUser = _mapper.Map<User>(userToCreate);
-            newUser.RoleId = role.Id;
 
-            _context.Users.Add(newUser);
+            var createdUser = await _userService.CreateAUserAsync(newUser, userToCreate.RoleName);
 
-            await _context.SaveChangesAsync();
+            if (createdUser == null) return BadRequest("Invalid RoleName. The role does not exist, choose Admin or User.");
 
-            return Ok(newUser);
+            return Ok(createdUser);
         }
 
         // PUT api/<UserController>/5
@@ -81,32 +73,12 @@ namespace CodeFirst.Controllers
         {
             // Validate the DTO using the validator
             var validationResult = await _userToUpdateDtoValidator.ValidateAsync(userToUpdate);
+            if (!validationResult.IsValid) return BadRequest(validationResult.Errors);
 
-            if (!validationResult.IsValid)
-            {
-                // Return validation errors as BadRequest
-                return BadRequest(validationResult.Errors);
-            }
+            var updatedUser = await _userService.UpdateFullUserAsync(userToUpdate, id);
+            if (updatedUser == null) return NotFound();
 
-            // Find the user by ID
-            var foundUser = await _context.Users.FindAsync(id);
-            if (foundUser == null)
-                return NotFound();
-
-            // Update fields with valid data
-            if (!string.IsNullOrWhiteSpace(userToUpdate.Name))
-                foundUser.Name = userToUpdate.Name;
-
-            if (!string.IsNullOrWhiteSpace(userToUpdate.Email))
-                foundUser.Email = userToUpdate.Email;
-
-            if (!string.IsNullOrWhiteSpace(userToUpdate.PhoneNumber))
-                foundUser.PhoneNumber = userToUpdate.PhoneNumber;
-
-            // Save changes to the database
-            await _context.SaveChangesAsync();
-
-            return Ok(foundUser);
+            return Ok(updatedUser);
         }
 
         // PATCH api/<UserController>/5
@@ -114,35 +86,21 @@ namespace CodeFirst.Controllers
         public async Task<IActionResult> UpdatePartialUser(int id, [FromBody] UserToUpdateDto userToUpdate)
         {
             // Use PATCH-specific validator
-            var validator = new UserToPatchDtoValidator();
-            var validationResult = await validator.ValidateAsync(userToUpdate);
-
+            var validationResult = await _userToPatchDtoValidator.ValidateAsync(userToUpdate);
             if (!validationResult.IsValid) return BadRequest(validationResult.Errors);
 
-            var foundUser = await _context.Users.FindAsync(id);
-            if (foundUser == null) return NotFound();
+            var upsatedUser = await _userService.UpdatePartialUser(userToUpdate, id);
+            if (upsatedUser == null) return NotFound();
 
-            // Only update fields that are provided
-            if (!string.IsNullOrWhiteSpace(userToUpdate.Name)) foundUser.Name = userToUpdate.Name;
-            if (!string.IsNullOrWhiteSpace(userToUpdate.Email)) foundUser.Email = userToUpdate.Email;
-            if (!string.IsNullOrWhiteSpace(userToUpdate.PhoneNumber)) foundUser.PhoneNumber = userToUpdate.PhoneNumber;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(foundUser);
+            return Ok(upsatedUser);
         }
 
         // DELETE api/<UserController>/5
         [HttpDelete("delete-user-by-{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var userToDelete = await _context.Users.FirstOrDefaultAsync(userInDb=>userInDb.Id == id);
-
-            if(userToDelete == null) return NotFound();
-
-            _context.Users.Remove(userToDelete);
-
-            await _context.SaveChangesAsync();
+            var isDeleted = await _userService.DeleteUserAsync(id);
+            if (!isDeleted) return NotFound();
 
             return Ok();
         }

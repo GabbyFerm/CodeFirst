@@ -1,4 +1,5 @@
 using CodeFirst.Database;
+using CodeFirst.Services;
 using CodeFirst.Validators;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -29,6 +30,8 @@ namespace ThursdayDemo
                     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
                 });
 
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IAddressService, AddressService>();
             builder.Services.AddAutoMapper(typeof(Program));
 
             // Swagger/OpenAPI 

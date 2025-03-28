@@ -1,9 +1,10 @@
-﻿using AutoMapper;
-using CodeFirst.Dtos;
+﻿using CodeFirst.Dtos;
 using CodeFirst.Models;
 using CodeFirst.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using CodeFirst.Validators;
+using CodeFirst.Services;
 
 namespace CodeFirst.Controllers
 {
@@ -11,33 +12,29 @@ namespace CodeFirst.Controllers
     [ApiController]
     public class AddressController : ControllerBase
     {
-        private readonly IMapper _mapper;
+        private readonly IAddressService _addressService;
 
-        private readonly CodeFirstDB _context;
-
-        public AddressController(IMapper mapper, CodeFirstDB context)
+        public AddressController(IAddressService addressService)
         {
-            _mapper = mapper;
-            _context = context;
+            _addressService = addressService;
         }
 
         // GET: api/<AddressController>
         [HttpGet("get-all-addresses")]
         public async Task<IActionResult> GetAllAddresses()
         {
-            var allAddresses = await _context.Addresses.ToListAsync();
-            return Ok(allAddresses);
+            var allAddressesFromDb = await _addressService.GetAllAddressesAsync();
+
+            return Ok(allAddressesFromDb);
         }
 
         // GET api/<AddressController>/5
         [HttpGet("get-address-by-{id}")]
         public async Task<IActionResult> GetAddressById(int id)
         {
-            var addressToReturn = await _context.Addresses.FirstOrDefaultAsync(addressInDb => addressInDb.Id == id);
+            var addressDto = await _addressService.GetAddressByIdAsync(id); 
 
-            if (addressToReturn == null) return NotFound();
-
-            var addressDto = _mapper.Map<AddressDto>(addressToReturn);
+            if (addressDto == null) return NotFound();
 
             return Ok(addressDto);
         }
@@ -48,38 +45,30 @@ namespace CodeFirst.Controllers
         {
             if (addressToCreate == null) return BadRequest("Address data is required");
 
-            var newAddress = _mapper.Map<Address>(addressToCreate);
+            var createdAddress = await _addressService.CreateAddressAsync(addressToCreate);
 
-            _context.Addresses.Add(newAddress);
-            await _context.SaveChangesAsync();
+            if (createdAddress == null) return BadRequest("Failed to create address.");
 
-            return Ok(newAddress);
+            return Ok(createdAddress);
         }
 
         // PUT api/<AddressController>/5
         [HttpPut("update-address-by-{id}")]
         public async Task<IActionResult> UpdateAddress(int id, [FromBody] AddressDto addressToUpdate)
         {
-            var existingAddress = await _context.Addresses.FirstOrDefaultAsync(addressInDb => addressInDb.Id == id);
+            var updatedAddress = await _addressService.UpdateAddressAsync(addressToUpdate, id);
 
-            if (existingAddress == null) return NotFound();
+            if (updatedAddress == null) return NotFound();
 
-            _mapper.Map(addressToUpdate, existingAddress);
-            await _context.SaveChangesAsync();
-
-            return Ok(existingAddress);            
+            return Ok(updatedAddress);            
         }
 
         // DELETE api/<AddressController>/5
         [HttpDelete("delete-address-by-{id}")]
         public async Task<IActionResult> DeleteAddress(int id)
         {
-            var addressToDelte = await _context.Addresses.FirstOrDefaultAsync(addressInDb =>addressInDb.Id == id);
-
-            if(addressToDelte == null) return NotFound();
-
-            _context.Addresses.Remove(addressToDelte);
-            await _context.SaveChangesAsync();
+            var isDeleted = await _addressService.DeleteAddressAsync(id);
+            if(!isDeleted) return NotFound();
 
             return Ok();
         }
