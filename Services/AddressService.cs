@@ -2,7 +2,6 @@
 using CodeFirst.Database;
 using CodeFirst.Dtos;
 using CodeFirst.Models;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace CodeFirst.Services

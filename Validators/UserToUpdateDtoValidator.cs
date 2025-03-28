@@ -7,14 +7,14 @@ namespace CodeFirst.Validators
     {
         public UserToUpdateDtoValidator()
         {
-            RuleFor(x => x.Name).NotEmpty().WithMessage("Name is required.");
+            RuleFor(user => user.Name).NotEmpty().WithMessage("Name is required.");
 
-            RuleFor(x => x.Email)
-            .EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email)) 
+            RuleFor(user => user.Email)
+            .EmailAddress().When(user => !string.IsNullOrWhiteSpace(user.Email)) 
             .WithMessage("Email must be a valid email address.");
 
-            RuleFor(x => x.PhoneNumber)
-                .Matches(@"^\d{10}$").When(x => !string.IsNullOrWhiteSpace(x.PhoneNumber)) 
+            RuleFor(user => user.PhoneNumber)
+                .Matches(@"^\d{10}$").When(user => !string.IsNullOrWhiteSpace(user.PhoneNumber)) 
                 .WithMessage("Phone number must be 10 digits.");
         }
     }
